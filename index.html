@@ -476,22 +476,19 @@
             openModal('loading', "Confirm Transaction...");
             try {
                 const ethVal = ethers.utils.parseEther(val);
-                
-                // 1. Calculate pure number of tokens (e.g. 4400)
-                const tokensToMintInUnits = ethVal.div(contractState.mintPriceWei); 
-                
-                // 2. Convert to Wei for contract (4400 * 10^18)
-                const tokensToMint = tokensToMintInUnits.mul(ethers.BigNumber.from(10).pow(18));
-
-                // 3. Format pure number for display (4,400)
-                const tokenAmount = tokensToMintInUnits.toLocaleString('en-US'); 
-
-                const tx = await mcfContract.mint(tokensToMint, { value: ethVal });
+                const tokens = ethVal.div(contractState.mintPriceWei);
+                const tx = await mcfContract.mint(tokens, { value: ethVal });
                 openModal('loading', "Minting...");
                 const receipt = await tx.wait();
                 
+                const tokensToMintInUnits = ethVal.div(contractState.mintPriceWei);
+                const tokensToMint = tokensToMintInUnits.mul(ethers.BigNumber.from(10).pow(18));
+                const tokenAmount = tokensToMintInUnits.toLocaleString('en-US');
+            
                 openModal('success', `Successful Mint!`, receipt.transactionHash, `Received ${tokenAmount} MCF`);
+
                 fetchMCFData();
+                updateBalances();
                 await updateBalances();
             } catch(e) { openModal('error', e.reason || e.message); }
         }
@@ -707,14 +704,43 @@
             catch(e) { openModal('error', "Switch failed"); }
         }
 
-        const mintEthInput = document.getElementById('mintAmountEth');
-        mintEthInput.addEventListener('input', (e) => {
-            if(contractState.mintPriceWei.gt(0)) {
-                const ethVal = ethers.utils.parseEther(e.target.value || "0");
-                const tokens = ethVal.div(contractState.mintPriceWei);
-                const formattedTokens = parseFloat(ethers.utils.formatEther(tokens)).toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+        
+          const mintEthInput = document.getElementById('mintAmountEth');
+          mintEthInput.addEventListener('input', (e) => {
+         
+        if (contractState.mintPriceWei && contractState.mintPriceWei.gt(0)) {
+        const inputValue = e.target.value;
+        
+        
+        if (!inputValue) {
+            document.getElementById('calcOutput').innerText = "0 MCF";
+            return;
+        }
+
+        try {
+            
+            const ethAmount = parseFloat(inputValue);
+            const ethPrice = parseFloat(ethers.utils.formatEther(contractState.mintPriceWei));
+            
+            if (ethPrice > 0) {
+                
+                const tokens = ethAmount / ethPrice;
+                
+                
+                const formattedTokens = tokens.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+                
                 document.getElementById('calcOutput').innerText = formattedTokens + " MCF";
+            } else {
+                document.getElementById('calcOutput').innerText = "0 MCF";
             }
+            } catch (error) {
+            console.error("Calculator Error:", error);
+            document.getElementById('calcOutput').innerText = "0 MCF";
+            }
+           } else {
+             
+             document.getElementById('calcOutput').innerText = "Loading price...";
+             }
         });
 
         // Feature 1: MAX Functions
